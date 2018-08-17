@@ -1,0 +1,28 @@
+body,
+html {
+  background: black;
+  color: white;
+}
+
+* {
+  font-family: Roboto;
+  box-sizing: border-box;
+}
+
+input,
+textarea {
+  color: white;
+  border: 0;
+  background: none;
+  background-color: none;
+  margin: 0;
+  padding: 0;
+  outline: 0;
+  border-radius: 4px;
+  resize: none;
+}
+
+input:focus,
+textarea:focus {
+  background-color: rgba(255, 255, 255, 0.05);
+}

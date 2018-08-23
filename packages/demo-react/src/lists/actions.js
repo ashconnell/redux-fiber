@@ -1,30 +1,14 @@
 import cuid from 'cuid'
 
-export const SET_NEW_LIST_NAME = 'lists/SET_NEW_LIST_NAME'
-export const CREATE_NEW_LIST = 'lists/CREATE_NEW_LIST'
-export const SET_EXISTING_LIST_CODE = 'lists/SET_EXISTING_LIST_CODE'
-export const REQUEST_EXISTING_LIST = 'lists/REQUEST_EXISTING_LIST'
+export const CREATE_LIST = 'lists/CREATE_LIST'
 export const UPDATE_LIST = 'lists/UPDATE_LIST'
-export const REMOVE_LIST = 'lists/REMOVE_LIST'
+export const DELETE_LIST = 'lists/DELETE_LIST'
+export const LIST_UPDATE_RECEIVED = 'lists/LIST_UPDATE_RECEIVED'
 
-export const setNewListName = name => ({
-  type: SET_NEW_LIST_NAME,
-  name,
-})
-
-export const createNewList = () => ({
-  type: CREATE_NEW_LIST,
+export const createList = boardId => ({
+  type: CREATE_LIST,
   id: cuid(),
-  slug: cuid.slug(),
-})
-
-export const setExistingListCode = code => ({
-  type: SET_EXISTING_LIST_CODE,
-  code,
-})
-
-export const requestExistingList = () => ({
-  type: REQUEST_EXISTING_LIST,
+  boardId,
 })
 
 export const updateList = ({ id, name }) => ({
@@ -33,7 +17,12 @@ export const updateList = ({ id, name }) => ({
   name,
 })
 
-export const removeList = id => ({
-  type: REMOVE_LIST,
+export const deleteList = id => ({
+  type: DELETE_LIST,
   id,
+})
+
+export const listUpdateReceived = list => ({
+  type: LIST_UPDATE_RECEIVED,
+  list,
 })

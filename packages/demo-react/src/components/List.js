@@ -4,11 +4,11 @@ import styled from 'react-emotion'
 import { MdClose } from 'react-icons/md'
 import Textarea from 'react-autosize-textarea'
 
-import { selectListById, updateList, removeList } from '../lists'
+import { selectListById, updateList, deleteList } from '../lists'
 import {
   selectTodoIds,
-  selectDraftTodoLabel,
-  setDraftTodoLabel,
+  selectDraftTodo,
+  setDraftTodo,
   createTodoFromDraft,
 } from '../todos'
 
@@ -34,18 +34,10 @@ const ListNameInput = styled(Textarea)`
 
 const AddTodoInput = styled(Textarea)``
 
-const ShareText = styled('p')`
-  text-align: center;
-  font-size: 10px;
-  line-height: 1;
-  margin: 5px 0;
-  color: rgba(255, 255, 255, 0.4);
-`
-
 const List = ({
   list,
   setListName,
-  removeList,
+  deleteList,
   todoIds,
   draftLabel,
   setDraftLabel,
@@ -54,14 +46,18 @@ const List = ({
   <Container>
     <Header>
       <ListNameInput
+        placeholder={'List Name'}
         value={list.name}
         onChange={e => setListName(e.target.value)}
+        onKeyDown={e => {
+          if (e.keyCode === 13) {
+            e.preventDefault()
+            e.target.blur()
+          }
+        }}
       />
-      <MdClose onClick={removeList} />
+      <MdClose onClick={deleteList} />
     </Header>
-    <ShareText>
-      Share code: <b>{list.code}</b>
-    </ShareText>
     {todoIds.map(todoId => (
       <Todo key={todoId} todoId={todoId} />
     ))}
@@ -82,13 +78,13 @@ const List = ({
 const mapState = (state, props) => ({
   list: selectListById(state, props.listId),
   todoIds: selectTodoIds(state, props.listId),
-  draftLabel: selectDraftTodoLabel(state, props.listId),
+  draftLabel: selectDraftTodo(state, props.listId),
 })
 
 const mapDispatch = (dispatch, props) => ({
   setListName: name => dispatch(updateList({ id: props.listId, name })),
-  removeList: () => dispatch(removeList(props.listId)),
-  setDraftLabel: label => dispatch(setDraftTodoLabel(props.listId, label)),
+  deleteList: () => dispatch(deleteList(props.listId)),
+  setDraftLabel: label => dispatch(setDraftTodo(props.listId, label)),
   createFromDraft: () => dispatch(createTodoFromDraft(props.listId)),
 })
 

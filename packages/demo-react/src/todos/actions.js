@@ -1,13 +1,13 @@
 import cuid from 'cuid'
 
-export const SET_DRAFT_TODO_LABEL = 'todos/SET_DRAFT_TODO_LABEL'
+export const SET_DRAFT_TODO = 'todos/SET_DRAFT_TODO'
 export const CREATE_TODO_FROM_DRAFT = 'todos/CREATE_TODO_FROM_DRAFT'
 export const SET_TODO_LABEL = 'todos/SET_TODO_LABEL'
 export const SET_TODO_DONE = 'todos/SET_TODO_DONE'
 export const REMOVE_TODO = 'todos/REMOVE_TODO'
 
-export const setDraftTodoLabel = (listId, label) => ({
-  type: SET_DRAFT_TODO_LABEL,
+export const setDraftTodo = (listId, label) => ({
+  type: SET_DRAFT_TODO,
   listId,
   label,
 })

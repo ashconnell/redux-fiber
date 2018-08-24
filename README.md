@@ -109,3 +109,4 @@ If no getKey function is defined, this fiber will run as a singleton.
 The function is passed the `store` and must return an execute function.
 The execute function is called with `props` for the fiber to start it's job.
 If the execute function returns another function, this will be called when the fiber is stopped.
+5. [`throttle`] (Number): Use this to throttle how often a fiber can receive updates

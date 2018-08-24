@@ -1,4 +1,4 @@
-import { isArray, isFunction, some, throttle } from 'lodash'
+import { isArray, isFunction, throttle } from 'lodash'
 
 import { invariant, logStatus } from './utils'
 

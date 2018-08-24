@@ -1,6 +1,5 @@
 import gql from 'graphql-tag'
 import { navigate } from '@reach/router'
-// import { memoize, throttle } from 'lodash'
 
 import { exec } from '../network'
 
@@ -113,8 +112,6 @@ const getBoardFiber = {
   },
 }
 
-// const keyedThrottle = memoize((id, fn, delay) => throttle(fn, delay))
-
 const updateBoardFiber = {
   name: 'updateBoard',
   selectors: [selectUpdatedBoards],
@@ -133,37 +130,6 @@ const updateBoardFiber = {
     return req.unsubscribe
   },
   throttle: 1000,
-  // start: (data, dispatch, getState) => {
-  //   let didStop
-  //   let req
-  //   const send = keyedThrottle(
-  //     data.id,
-  //     data => {
-  //       if (req) req.unsubscribe()
-  //       if (didStop) return
-  //       req = exec(updateBoard, { input: data }).subscribe({
-  //         next: ({ data }) => {
-  //           if (data && data.updateBoard) {
-  //             dispatch(updateBoardSuccess(data.updateBoard))
-  //           } else {
-  //             // TODO: conflict resolution
-  //             console.log('updateBoard: TODO: conflict res')
-  //           }
-  //         },
-  //       })
-  //     },
-  //     1000
-  //   )
-  //   send(data)
-
-  //   return {
-  //     update: data => send(data),
-  //     cancel: () => {
-  //       didStop = true
-  //       req.unsubscribe()
-  //     },
-  //   }
-  // },
 }
 
 const boardEventFiber = {

@@ -1,60 +1,15 @@
 import { PubSub, withFilter } from 'graphql-subscriptions'
 import cuid from 'cuid'
 
-const pubsub = new PubSub()
-let now = Date.now()
+import { delay } from './utils'
+import db from './db'
 
-const delay = time => {
-  return new Promise(resolve => {
-    setTimeout(resolve, time)
-  })
-}
+const pubsub = new PubSub()
 
 const Events = {
   BOARD: 'BOARD',
   LIST_UPDATE: 'LIST_UPDATE',
 }
-
-const boards = [
-  {
-    id: 'board_1',
-    name: "Ash's Board",
-    code: 'ash',
-    createdAt: now,
-    updatedAt: now,
-  },
-]
-
-const lists = [
-  {
-    id: 'list_1',
-    boardId: 'board1',
-    name: 'My List',
-    createdAt: now,
-    updatedAt: now,
-  },
-]
-
-const todos = [
-  {
-    id: 'todo_1',
-    listId: 'list_1',
-    label: 'Get Milk',
-    done: false,
-    pos: 1000,
-    createdAt: now,
-    updatedAt: now,
-  },
-  {
-    id: 'todo_2',
-    listId: 'list_1',
-    label: 'Walk Dog',
-    done: true,
-    pos: 2000,
-    createdAt: now,
-    updatedAt: now,
-  },
-]
 
 export default {
   List: {
@@ -65,7 +20,7 @@ export default {
   Query: {
     _: () => false,
     getBoard(_, { code }, context, info) {
-      let board = boards.find(board => board.code === code)
+      let board = db.boards.find(board => board.code === code)
       if (!board) throw new Error('No board found with that code.')
       return board
     },
@@ -81,14 +36,14 @@ export default {
         createdAt: now,
         updatedAt: now,
       }
-      boards.push(board)
+      db.boards.push(board)
       return board
     },
     async updateBoard(_, { input }, { deviceId }, info) {
       await delay(500)
       const { id, name } = input
       let now = Date.now()
-      let board = boards.find(board => board.id === id)
+      let board = db.boards.find(board => board.id === id)
       if (!board) throw new Error('Board does not exist.')
       if (name) board.name = name
       board.updatedAt = now
@@ -112,28 +67,28 @@ export default {
         createdAt: now,
         updatedAt: now,
       }
-      lists.push(list)
+      db.lists.push(list)
       return list
     },
     updateList: (_, { input }, context, info) => {
-      let list = lists.find(list => list.id === input.id)
+      let list = db.lists.find(list => list.id === input.id)
       if (list.updatedAt > input.updatedAt) {
         throw new Error(
           'Server list is newer than client list. TODO: conflict resolution'
         )
       }
       const now = Date.now()
-      let index = lists.indexOf(list)
+      let index = db.lists.indexOf(list)
       lists[index] = {
         ...list,
         ...input,
         updatedAt: now,
       }
       pubsub.publish(Events.LIST_UPDATE, {
-        list: lists[index],
+        list: db.lists[index],
         serverTime: now,
       })
-      return lists[index]
+      return db.lists[index]
     },
   },
   Subscription: {
@@ -141,7 +96,7 @@ export default {
       subscribe: withFilter(
         (_, { id, afterDate }, { deviceId }, info) => {
           setTimeout(() => {
-            const board = boards.find(
+            const board = db.boards.find(
               board =>
                 board.id === id && (!afterDate || board.updatedAt > afterDate)
             )
@@ -171,7 +126,7 @@ export default {
       subscribe: withFilter(
         (_, { boardId, lastResponse }, context, info) => {
           setTimeout(() => {
-            const updatedLists = lists.filter(list => {
+            const updatedLists = db.lists.filter(list => {
               return (
                 list.boardId === boardId &&
                 (!lastResponse || list.updatedAt > lastResponse)

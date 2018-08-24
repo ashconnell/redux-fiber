@@ -10,6 +10,8 @@ const client = new SubscriptionClient(GRAPHQL_ENDPOINT, {
   reconnect: true,
 })
 
+let deviceId
+
 const webSocketLink = new WebSocketLink(client)
 const errorLink = onError(operation => {
   console.log('[errorLink]', operation)
@@ -26,22 +28,33 @@ const errorLink = onError(operation => {
 const link = ApolloLink.from([errorLink, webSocketLink])
 
 export const exec = (query, variables) => {
-  return execute(link, {
+  return client.request({
     query,
     variables,
-    // operationName: {},
-    // context: {},
-    // extensions: {},
+    context: {
+      deviceId,
+    },
   })
+  // return execute(link, {
+  //   query,
+  //   variables,
+  //   context: {
+  //     deviceId,
+  //   },
+  //   // operationName: {},
+  //   // extensions: {},
+  // })
 }
 
-export const network = ({ dispatch }) => {
+export const network = ({ dispatch, getState }) => {
   client.onConnected(() => dispatch(networkStatusChanged(true)))
   client.onDisconnected(() => dispatch(networkStatusChanged(false)))
   client.onReconnected(() => dispatch(networkStatusChanged(true)))
   // client.onConnecting(() => console.log('[ws] connecting'))
   // client.onReconnecting(() => console.log('[ws] reconnecting'))
   // client.onError(() => console.log('[ws] error'))
+
+  deviceId = getState().network.deviceId
 
   return next => action => {
     return next(action)

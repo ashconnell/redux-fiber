@@ -4,6 +4,12 @@ import cuid from 'cuid'
 const pubsub = new PubSub()
 let now = Date.now()
 
+const delay = time => {
+  return new Promise(resolve => {
+    setTimeout(resolve, time)
+  })
+}
+
 const Events = {
   BOARD: 'BOARD',
   LIST_UPDATE: 'LIST_UPDATE',
@@ -78,7 +84,8 @@ export default {
       boards.push(board)
       return board
     },
-    updateBoard(_, { input }, context, info) {
+    async updateBoard(_, { input }, { deviceId }, info) {
+      await delay(500)
       const { id, name } = input
       let now = Date.now()
       let board = boards.find(board => board.id === id)
@@ -91,6 +98,7 @@ export default {
           serverTime: now,
           board,
         },
+        deviceId,
       })
       return board
     },
@@ -131,28 +139,28 @@ export default {
   Subscription: {
     boardEvent: {
       subscribe: withFilter(
-        (_, { id, afterDate }, context, info) => {
+        (_, { id, afterDate }, { deviceId }, info) => {
           setTimeout(() => {
-            const serverTime = Date.now()
             const board = boards.find(
               board =>
-                board.id === id && (!afterDate || afterDate < board.updatedAt)
+                board.id === id && (!afterDate || board.updatedAt > afterDate)
             )
             if (board) {
               pubsub.publish(Events.BOARD, {
                 boardEvent: {
                   id,
-                  serverTime,
+                  serverTime: board.updatedAt,
                   board,
                 },
+                deviceId,
               })
             }
           }, 100)
           return pubsub.asyncIterator(Events.BOARD)
         },
-        ({ boardEvent }, { id, afterDate }, context, info) => {
-          console.log('boardEvent', boardEvent, id, afterDate)
+        ({ boardEvent, deviceId }, { id, afterDate }, ctx, info) => {
           return (
+            deviceId !== ctx.deviceId &&
             boardEvent.id === id &&
             (!afterDate || boardEvent.serverTime > afterDate)
           )

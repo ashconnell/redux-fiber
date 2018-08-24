@@ -28,7 +28,19 @@ const createListMutation = gql`
   }
 `
 
-export const listUpdatesFiber = {
+const createListFiber = {
+  name: 'createList',
+  selectors: [selectNewLists],
+  getProps: newLists => newLists,
+  getKey: ({ id }) => id,
+  start: (list, dispatch, getState) => {
+    // setTimeout(() => {
+    //   dispatch(updateList({ ...list, new: false }))
+    // }, 2000)
+  },
+}
+
+const listUpdatesFiber = {
   name: 'listUpdates',
   getProps: state => {
     // TODO: use a declarative <Fiber/> component since this is
@@ -57,13 +69,4 @@ export const listUpdatesFiber = {
   },
 }
 
-export const createListFiber = {
-  name: 'createList',
-  selectors: [selectNewLists],
-  getKey: ({ id }) => id,
-  start: (list, dispatch, getState) => {
-    // setTimeout(() => {
-    //   dispatch(updateList({ ...list, new: false }))
-    // }, 2000)
-  },
-}
+export const listFibers = [listUpdatesFiber, createListFiber]

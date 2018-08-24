@@ -1,7 +1,6 @@
 import 'babel-polyfill'
 import { ApolloServer } from 'apollo-server'
 
-import { strip } from './utils'
 import typeDefs from './typeDefs'
 import resolvers from './resolvers'
 
@@ -9,6 +8,10 @@ const server = new ApolloServer({
   typeDefs,
   resolvers,
   cors: true,
+  context: ({ payload }) => {
+    const { deviceId } = payload.context
+    return { deviceId }
+  },
   // playground: {
   //   tabs: [
   //     {

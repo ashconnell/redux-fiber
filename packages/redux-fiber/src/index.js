@@ -1,56 +1,60 @@
-import { isArray, isFunction } from 'lodash'
-import { invariant, log } from './utils'
+import { isArray, isFunction, some, throttle } from 'lodash'
 
-const UN_KEYED_FIBER = 'fiber/UN_KEYED'
+import { invariant, logStatus } from './utils'
 
-const defaultGetKey = () => UN_KEYED_FIBER
+const getSingletonKey = () => 'fiber/SINGLETON'
+const noop = () => {}
 
-export function createFibers(...types) {
-  return ({ dispatch, getState }) => {
-    let ids = 0
+export function createFibers(...values) {
+  return store => {
+    const types = []
+    values.forEach(value => {
+      if (isArray(value)) {
+        value.forEach(type => types.push(type))
+      } else {
+        types.push(value)
+      }
+    })
 
     // initialize + validate
     types.forEach(type => {
-      type.name = type.name || 'NO_NAME_FIBER'
-      type.getKey = type.getKey || defaultGetKey
+      type.name = type.name || 'unnamedFiber'
+      type.getKey = type.getKey || getSingletonKey
       type.fibers = []
-      // invariant(
-      //   isFunction(type.getProps),
-      //   `getProps function is required (${type.name})`
-      // )
-      if (type.selectors) {
-        invariant(
-          type.selectors.length,
-          `selectors specified with no selectors (${type.name})`
-        )
+      if (type.selectors && !type.selectors.length) {
+        type.selectors = null
       }
+      invariant(
+        isFunction(type.getProps),
+        `getProps function is required (${type.name})`
+      )
       invariant(
         isFunction(type.start),
         `start function is required (${type.name})`
       )
-      log(`${type.name} registered`)
     })
+
+    function didPropsChange(props, nextProps) {
+      for (let key in props) if (!(key in nextProps)) return true
+      for (let key in nextProps) if (props[key] !== nextProps[key]) return true
+      return false
+    }
 
     // returns [{ key, props }] used to start/update/stop instances
     function getChanges(type, state) {
       let results
       if (type.selectors) {
         let selected = type.selectors.map(selector => selector(state))
-        results = type.getProps ? type.getProps(...selected) : selected
+        results = type.getProps(...selected)
       } else {
         results = type.getProps(state)
       }
-      if (!results) {
-        return []
-      }
-      if (!isArray(results)) {
-        results = [results]
-      }
-      let changes = results.map(props => ({
+      if (!results) return []
+      if (!isArray(results)) results = [results]
+      return results.map(props => ({
         key: type.getKey(props),
         props,
       }))
-      return changes
     }
 
     function update(type, state) {
@@ -59,11 +63,9 @@ export function createFibers(...types) {
       // kill any fibers that have no changes
       type.fibers = type.fibers.filter(fiber => {
         let match = changes.find(change => fiber.key === change.key)
-        if (match) {
-          return true
-        }
-        fiber.stop && fiber.stop()
-        log(`${type.name}:${fiber.id} stopped`)
+        if (match) return true
+        fiber.stop()
+        logStatus(type, fiber, 'stopped')
         return false
       })
 
@@ -71,34 +73,42 @@ export function createFibers(...types) {
       changes.forEach(({ key, props }) => {
         let fiber = type.fibers.find(fiber => fiber.key === key)
         if (fiber) {
-          if (fiber.update) {
-            fiber.update(props)
-            log(`${type.name}:${fiber.id} updated`, props)
+          if (didPropsChange(fiber.props, props)) {
+            fiber.stop()
+            fiber.stop = fiber.update(props) || noop
+            fiber.props = props
           }
         } else {
-          let id = ++ids
-          let control = type.start(props, dispatch, getState)
-          if (isFunction(control)) {
-            control = { stop: control }
-          }
-          type.fibers.push({
-            id,
+          let updater = type.start(store)
+          let fiber = {
             key,
-            ...control,
-          })
-          log(`${type.name}:${id} started`, props)
+            props,
+            update,
+          }
+          let update = props => {
+            fiber.stop = updater(props) || noop
+            logStatus(type, fiber, 'updated', props)
+          }
+          if (type.throttle) {
+            fiber.update = throttle(update, type.throttle)
+          } else {
+            fiber.update = update
+          }
+          fiber.update(props)
+          type.fibers.push(fiber)
+          logStatus(type, fiber, 'started')
         }
       })
     }
 
     // TODO: why does middleware ignore the internal init action :/
     setTimeout(function() {
-      dispatch({ type: 'INIT' })
+      store.dispatch({ type: 'fiber/INIT' })
     })
 
     return next => action => {
       let result = next(action)
-      const state = getState()
+      const state = store.getState()
       types.forEach(type => update(type, state))
       return result
     }

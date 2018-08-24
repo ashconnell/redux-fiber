@@ -1,6 +1,6 @@
 import gql from 'graphql-tag'
 import { navigate } from '@reach/router'
-import { memoize, throttle } from 'lodash'
+// import { memoize, throttle } from 'lodash'
 
 import { exec } from '../network'
 
@@ -70,18 +70,18 @@ const subscribeToBoard = gql`
   }
 `
 
-export const createBoardFiber = {
+const createBoardFiber = {
   name: 'createBoard',
   selectors: [selectNewBoards],
   getProps: boards => boards,
-  start: ({ id, name }, dispatch, getState) => {
+  start: store => ({ id, name }) => {
+    // TODO: simplify exec() to return a cancel and hide the fluff :)
     const req = exec(createBoard, { input: { id, name } }).subscribe({
       next: ({ data }) => {
         if (data && data.createBoard) {
-          dispatch(createBoardSuccess(data.createBoard))
+          store.dispatch(createBoardSuccess(data.createBoard))
         } else {
-          // TODO: this should never happen?
-          console.log('createBoard error')
+          console.log('createBoard error') // TODO: this should never happen?
         }
       },
     })
@@ -89,21 +89,23 @@ export const createBoardFiber = {
   },
 }
 
-export const getBoardFiber = {
+const getBoardFiber = {
   name: 'getBoard',
   selectors: [selectExistingBoard],
   getProps: ({ code, requested }) => {
     if (!requested) return
     return { code }
   },
-  start: ({ code }, dispatch, getState) => {
-    const req = exec(getBoard, { code }).subscribe({
+  start: store => props => {
+    const req = exec(getBoard, props).subscribe({
       next: ({ data }) => {
         if (data && data.getBoard) {
-          dispatch(requestExistingBoardSuccess(data.getBoard))
+          store.dispatch(requestExistingBoardSuccess(data.getBoard))
           navigate(`/boards/${data.getBoard.id}`)
         } else {
-          dispatch(requestExistingBoardError('TODO: Something went wrong :('))
+          store.dispatch(
+            requestExistingBoardError('TODO: Something went wrong :(')
+          )
         }
       },
     })
@@ -111,46 +113,60 @@ export const getBoardFiber = {
   },
 }
 
-const keyedThrottle = memoize((id, fn, delay) => throttle(fn, delay))
+// const keyedThrottle = memoize((id, fn, delay) => throttle(fn, delay))
 
-export const updateBoardFiber = {
+const updateBoardFiber = {
   name: 'updateBoard',
   selectors: [selectUpdatedBoards],
-  getProps: boards => boards,
-  start: (data, dispatch, getState) => {
-    let didStop
-    let req
-    const send = keyedThrottle(
-      data.id,
-      data => {
-        if (req) req.unsubscribe()
-        if (didStop) return
-        req = exec(updateBoard, { input: data }).subscribe({
-          next: ({ data }) => {
-            if (data && data.updateBoard) {
-              dispatch(updateBoardSuccess(data.updateBoard))
-            } else {
-              // TODO: conflict resolution
-              console.log('updateBoard: TODO: conflict res')
-            }
-          },
-        })
+  getProps: boards => boards.map(({ id, name }) => ({ id, name })),
+  start: store => props => {
+    let req = exec(updateBoard, { input: props }).subscribe({
+      next: ({ data }) => {
+        if (data && data.updateBoard) {
+          store.dispatch(updateBoardSuccess(data.updateBoard))
+        } else {
+          // TODO: conflict resolution
+          console.log('updateBoard: TODO: conflict res')
+        }
       },
-      1000
-    )
-    send(data)
-
-    return {
-      update: data => send(data),
-      cancel: () => {
-        didStop = true
-        req.unsubscribe()
-      },
-    }
+    })
+    return req.unsubscribe
   },
+  throttle: 1000,
+  // start: (data, dispatch, getState) => {
+  //   let didStop
+  //   let req
+  //   const send = keyedThrottle(
+  //     data.id,
+  //     data => {
+  //       if (req) req.unsubscribe()
+  //       if (didStop) return
+  //       req = exec(updateBoard, { input: data }).subscribe({
+  //         next: ({ data }) => {
+  //           if (data && data.updateBoard) {
+  //             dispatch(updateBoardSuccess(data.updateBoard))
+  //           } else {
+  //             // TODO: conflict resolution
+  //             console.log('updateBoard: TODO: conflict res')
+  //           }
+  //         },
+  //       })
+  //     },
+  //     1000
+  //   )
+  //   send(data)
+
+  //   return {
+  //     update: data => send(data),
+  //     cancel: () => {
+  //       didStop = true
+  //       req.unsubscribe()
+  //     },
+  //   }
+  // },
 }
 
-export const boardEventFiber = {
+const boardEventFiber = {
   name: 'boardEvent',
   getProps: state => {
     // TODO: use a declarative <Fiber/> component since this is
@@ -165,8 +181,8 @@ export const boardEventFiber = {
       }
     }
   },
-  start: ({ id, afterDate }, dispatch, getState) => {
-    const req = exec(subscribeToBoard, { id, afterDate }).subscribe({
+  start: store => props => {
+    const req = exec(subscribeToBoard, props).subscribe({
       next: ({ data }) => {
         const event = data && data.boardEvent
         if (!event) {
@@ -176,9 +192,16 @@ export const boardEventFiber = {
         // switch (event.type) {
         //   // ...
         // }
-        dispatch(boardEvent(event))
+        store.dispatch(boardEvent(event))
       },
     })
     return req.unsubscribe
   },
 }
+
+export const boardFibers = [
+  createBoardFiber,
+  getBoardFiber,
+  updateBoardFiber,
+  boardEventFiber,
+]

@@ -43,35 +43,22 @@ import { selectUnsentMessages } from './reducer'
 import { sendMessageSuccess, sendMessageError } from './actions'
 import api from '../api'
 
-export default {
+const sendMessageFiber = {
   name: 'sendMessage',
   getProps: selectUnsentMessages,
-  getKey: ({ cuid }) => cuid,
-  start: (message, dispatch, getState) => {
-    let request
-    
-    create(message)
-
-    function create({ cuid, spaceId, userId, text }) {
-      if (request) request.cancel()
-      request = api.createMessage(
-        { spaceId, userId, text },
-        error => dispatch(sendMessageError(error)),
-        data => dispatch(sendMessageSuccess(cuid))
-      )
-    }
-
-    return {
-      update: (nextMessage) => {
-        if (nextMessage.text !== message.text) {
-          message = nextMessage
-          create(message)
-        }
-      },
-      stop: () => request.cancel(),
-    }
+  getKey: ({ id }) => id,
+  start: store => props => {
+    return api.createMessage(
+      { spaceId, userId, text },
+      error => dispatch(sendMessageError(error)),
+      data => dispatch(sendMessageSuccess(cuid))
+    )
   }
 }
+
+export const messageFibers = [
+  sendMessageFiber
+]
 ```
 
 Attach the middleware to your store
@@ -80,12 +67,12 @@ Attach the middleware to your store
 // store.js
 import { createStore, combineReducers, applyMiddleware } from 'redux'
 import { createFibers } from 'redux-fiber'
-import { MESSAGES, messagesReducer, sendMessageFiber } from '../messages'
+import { MESSAGES, messagesReducer, messageFibers } from '../messages'
 
 const reducer = combineReducers({
   [MESSAGES]: messagesReducer,
 })
-const fibers = createFibers(sendMessageFiber)
+const fibers = createFibers(messageFibers)
 const middleware = applyMiddleware(fibers)
 const store = createStore(reducer, middleware)
 ```
@@ -96,7 +83,7 @@ const store = createStore(reducer, middleware)
 
 *Arguments:*
 
-1. `...fibers` (Object): One or more `FiberConfig` objects to be combined into middleware
+1. `...fibers` (Object|Array): One or more `FiberConfig` objects to be combined into middleware
 
 *Returns:*
 
@@ -106,25 +93,19 @@ const store = createStore(reducer, middleware)
 
 *Options:*
 
-1. [`name`] (String): An optional name for this fiber, used for debugging.
+1. [`name`] (String): An optional name for this fiber, used for logging/debugging.
 1. [`selectors`] (Array): An array of selectors that will be resolved with state and passed into `getProps`
 2. `getProps` (Function): A function that will be called with the selectors as params.
 If no selectors are provided it will be called with state (eg you could use a single selector here).
 The return value of this function is used to start, update and stop a fiber.
-If the return value is an array, a fiber will be started/updated for each item.
+If the return value is an array, a fiber will be started/updated for each item in the array.
 If the return value is an object, a single fiber will be started/updated with this value.
 If the return value is `null`, `undefined` or an empty array, any active fibers will be stopped.
 If the return value excludes previous values that started a fiber, they will be stopped.
 3. [`getKey`] (Function): A function that is called with each set of props.
 The return value is used as a key to determine which set of props belongs to which fiber.
-If no getKey function is defined, all prop changes will target a single fiber.
+If no getKey function is defined, this fiber will run as a singleton.
 4. `start` (Function): A function that is called to start a fiber. 
-The function is passed props, dispatch and getState as params for the fiber to process.
-This function can return a `FiberControls` object if it needs to react to update/stop
-
-### FiberControls (Object)
-
-*Options:*
-
-1. [`update`] (Function): Called when props change for this fiber.
-1. [`stop`] (Function): Called when the fiber has been stopped.
+The function is passed the `store` and must return an execute function.
+The execute function is called with `props` for the fiber to start it's job.
+If the execute function returns another function, this will be called when the fiber is stopped.
